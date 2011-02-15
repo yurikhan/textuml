@@ -87,35 +87,46 @@ class Note:
                 return STATE_TOPLEVEL
             return state
 
-class Package:
-    start_regex = re.compile("^_+\\[(?P<tail>.*?)$")
-    end_regex = re.compile("^(?P<label>.*?)\\]_+$")
+class MultilineSymbol:
     name_regex = re.compile("^\\s*(?:(?:«.*?»|<<.*?>>|\\{.*?\\})\\s*)*"
                             "(?P<name>[^\\s<>{}]+).*?"
                             "(?:\\s+@(?P<id>[^@]*?))?"
                             "$", re.DOTALL)
 
-    template = "\t\"%(id)s\" [shape = tab, label = <%(label)s>]"
+    template = "\t\"%(id)s\" [shape = %(shape)s, label = <%(label)s>]"
 
     def __init__(self):
-        self.id = None
-        self.lines = []
+        self.label = []
+        self.serial = self.__class__.default_id_template % self.__class__.count
+        self.__class__.count += 1
 
     def process_line(self, state, line):
-        if state == STATE_PACKAGE:
-            m = re.match(Package.end_regex, line)
+        if state == self.__class__.state:
+            m = re.match(self.__class__.end_regex, line)
             if m:
-                self.lines.append(m.group("label"))
+                if "label" in m.groupdict() and m.group("label"):
+                    self.label.append(m.group("label"))
                 print self
                 return STATE_TOPLEVEL
-            self.lines.append(line)
+            self.label.append(line)
             return state
 
     def __str__(self):
-        m = re.match(Package.name_regex, "\n".join(self.lines))
-        return (Package.template
-                % {"id": m.group("id") or m.group("name"),
-                   "label": multiline(2, self.lines)})
+        m = re.match(MultilineSymbol.name_regex, "\n".join(self.label))
+        return (MultilineSymbol.template
+                % {"id": m.group("id") or m.group("name") or self.serial,
+                   "shape": self.__class__.shape,
+                   "label": multiline(2, self.label)})
+
+class Package(MultilineSymbol):
+    start_regex = re.compile("^_+\\[(?P<tail>.*?)$")
+    end_regex = re.compile("^(?P<label>.*?)\\]_+$")
+
+    shape = "tab"
+    state = STATE_PACKAGE
+    default_id_template = "package%d"
+
+    count = 0
 
 class Class:
     start_regex = re.compile("^\\{$")
@@ -454,89 +465,35 @@ class NaryAssociation:
                     or ""),
                "ends": "\n".join([str(end) for end in self.ends])})
 
-# REFACTOR: very similar to Package
-class UseCase:
+class UseCase(MultilineSymbol):
     start_regex = "^\\(_(?P<tail>.*?)$"
     end_regex = "^(?P<label>.*?)_\\)$"
-    name_regex = Package.name_regex
 
-    template = "\t\"%(id)s\" [shape = ellipse, label = <%(label)s>]"
+    shape = "ellipse"
+    state = STATE_USECASE
+    default_id_template = "use_case_%d"
 
-    def __init__(self):
-        self.label = []
+    count = 0
 
-    def process_line(self, state, line):
-        if state == STATE_USECASE:
-            m = re.match(UseCase.end_regex, line)
-            if m:
-                self.label.append(m.group("label"))
-                print self
-                return STATE_TOPLEVEL
-            self.label.append(line)
-            return state
-
-    def __str__(self):
-        m = re.match(UseCase.name_regex, "\n".join(self.label))
-        return (UseCase.template
-            % {"id": m.group("id") or m.group("name"),
-               "label": multiline(2, self.label)})
-
-class Node:
+class Node(MultilineSymbol):
     start_regex = re.compile("^/_+/$")
     end_regex = re.compile("^_+/$")
-    name_regex = Package.name_regex
 
-    template = "\t\"%(id)s\" [shape = box3d, label = <%(label)s>]"
+    shape = "box3d"
+    state = STATE_NODE
+    default_id_template = "node%d"
 
     count = 0
 
-    def __init__(self):
-        self.label = []
-        self.serial = "node%d" % self.__class__.count
-        self.__class__.count += 1
-
-    def process_line(self, state, line):
-        if state == STATE_NODE:
-            if re.match(Node.end_regex, line):
-                print self
-                return STATE_TOPLEVEL
-            self.label.append(line)
-            return state
-
-    def __str__(self):
-        m = re.match(Node.name_regex, "\n".join(self.label))
-        return (Node.template
-                % {"id": m.group("id") or m.group("name") or self.serial,
-                   "label": multiline(2, self.label)})
-
-class Component:
+class Component(MultilineSymbol):
     start_regex = re.compile("^(?:_+-)+_+$")
     end_regex = re.compile("^_+$")
-    name_regex = Package.name_regex
 
-    template = "\t\"%(id)s\" [shape = component, label = <%(label)s>]"
+    shape = "component"
+    state = STATE_COMPONENT
+    default_id_template = "component%d"
 
     count = 0
-
-    def __init__(self):
-        self.label = []
-        self.serial = "node%d" % self.__class__.count
-        self.__class__.count += 1
-
-    def process_line(self, state, line):
-        if state == STATE_COMPONENT:
-            if re.match(Component.end_regex, line):
-                print self
-                return STATE_TOPLEVEL
-            self.label.append(line)
-            return state
-
-    def __str__(self):
-        m = re.match(Component.name_regex, "\n".join(self.label))
-        return (Component.template
-                % {"id": m.group("id") or m.group("name") or self.serial,
-                   "label": multiline(2, self.label)})
-
 
 DIGRAPH_BEGIN = """digraph Classes
 {
