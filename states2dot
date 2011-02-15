@@ -14,10 +14,10 @@ def html_entities(text):
 def multiline(indent, lines):
     return ("\n" + indent * "\t").join([html_entities(line) + "<br/>" for line in lines])
 
-STATE_TOPLEVEL = 0
-STATE_STATE_HEAD = 1
-STATE_COMPARTMENT = 2
-STATE_SYNCHRONIZATION = 3
+(STATE_TOPLEVEL,
+ STATE_STATE_HEAD,
+ STATE_COMPARTMENT,
+ STATE_SYNCHRONIZATION) = range(4)
 
 state = STATE_TOPLEVEL
 
