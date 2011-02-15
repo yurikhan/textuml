@@ -1,0 +1,413 @@
+#! /usr/bin/python
+# -*- coding: utf-8 -*-
+
+import fileinput, re
+
+def html_entities(text):
+    return (text
+            .replace("&", "&amp;")
+            .replace("<<", "«")
+            .replace(">>", "»")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;"))
+
+def multiline(indent, lines):
+    return ("\n" + indent * "\t").join([html_entities(line) + "<br/>" for line in lines])
+
+STATE_TOPLEVEL = 0
+STATE_STATE_HEAD = 1
+STATE_COMPARTMENT = 2
+STATE_SYNCHRONIZATION = 3
+
+state = STATE_TOPLEVEL
+
+class State:
+    simple_regex = re.compile("^\\{(?P<inner>.*?)\\}$")
+    start_regex = re.compile("^\\{$")
+    separator_regex = re.compile("^--$")
+    end_regex = re.compile("^\\}$")
+    id_regex = re.compile("^\\s*(?P<label>.*?)(?:\\s+@(?P<id>[^@]*?))?$")
+    name_regex = re.compile("^\\s*(?:(?:«.*?»|<<.*?>>|\\{.*?\\})\\s*)*"
+                            "(?P<name>[^\\s:()«»<>{}]*).*?"
+                            "(?:\\s+@(?P<id>[^@]*?))?"
+                            "$", re.DOTALL)
+
+    count = 0
+
+    class Head:
+        template = "\t\t<tr><td>%s</td></tr>"
+
+        def __init__(self, owner):
+            self.owner = owner
+            self.lines = []
+
+        def process_line(self, line):
+            if re.match(State.separator_regex, line):
+                self.owner.compartments.append(State.Compartment(self.owner))
+                return STATE_COMPARTMENT
+            if re.match(State.end_regex, line):
+                print self.owner
+                return STATE_TOPLEVEL
+
+            m = re.match(State.id_regex, line)
+            self.owner.id = self.owner.id or m.group("id")
+            self.lines.append(m.group("label"))
+            return STATE_STATE_HEAD
+
+        def __str__(self):
+            return State.Head.template % multiline(3, self.lines)
+
+        def name(self):
+            m = re.match(State.name_regex, "\n".join(self.lines))
+            return m and m.group("name")
+
+    class Compartment:
+        empty_template = "\t\t<tr><td></td></tr>"
+        template = ("\t\t<tr><td>"
+                    "<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" cellpadding=\"1\">\n"
+                    "%s\n"
+                    "\t\t</table></td></tr>")
+
+        class Line:
+            regex = re.compile("^(?P<label>"
+                               "(?P<name>[^\\s:()«»<>{}\\[\\]/]+)"
+                               ".*?)"
+                               "(?:\\s+@(?P<id>[^@]*?))?$")
+            continuation_regex = re.compile("^(?P<tail>\\s+.*?)"
+                                            "(?:\\s+@(?P<id>.*?))?$")
+
+            port_template = "\t\t\t<tr><td align=\"left\" port=\"%(id)s\">%(label)s</td></tr>"
+            template = "\t\t\t<tr><td align=\"left\">%(label)s</td></tr>"
+
+            def __init__(self, anId, name, label):
+                self.id = anId
+                self.name = name
+                self.label = [label]
+
+            def append(self, anId, label):
+                self.id = self.id or anId
+                self.label.append(label)
+
+            def __str__(self):
+                return ((self.id or self.name)
+                        and State.Compartment.Line.port_template
+                        or State.Compartment.Line.template) % {
+                    "id": self.id or self.name,
+                    "label": multiline(4, self.label)}
+
+        def __init__(self, owner):
+            self.owner = owner
+            self.lines = []
+
+        def process_line(self, line):
+            if re.match(State.separator_regex, line):
+                self.owner.compartments.append(State.Compartment(self.owner))
+                return STATE_COMPARTMENT
+            if re.match(State.end_regex, line):
+                print self.owner
+                return STATE_TOPLEVEL
+
+            m = re.match(State.Compartment.Line.regex, line)
+            if m:
+                self.lines.append(State.Compartment.Line(m.group("id"),
+                                                         m.group("name"),
+                                                         m.group("label")))
+                return STATE_COMPARTMENT
+            m = re.match(State.Compartment.Line.continuation_regex, line)
+            if m:
+                if self.lines:
+                    self.lines[-1].append(m.group("id"), m.group("tail"))
+                else:
+                    self.lines.append(State.Compartment.Line(m.group("id"), None, m.group("tail")))
+                return STATE_COMPARTMENT
+
+            self.lines.append(State.Compartment.Line(None, None, line.strip()))
+            return STATE_COMPARTMENT
+
+        def __str__(self):
+            if self.lines:
+                return State.Compartment.template % "\n".join([str(line) for line in self.lines])
+            return State.Compartment.empty_template
+
+    template = ("\t\"%(id)s\" [shape = plaintext, "
+                "height = 0, width = 0, margin = 0, label = <\n"
+                "\t\t<table style=\"rounded\" "
+                "border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"1\">\n"
+                "%(head)s\n"
+                "%(compartments)s\n"
+                "\t\t</table>>]")
+
+    def __init__(self, inner = None):
+        self.id = None
+        self.serial = self.__class__.count
+        self.head = State.Head(self)
+        inner and self.head.process_line(inner)
+        self.compartments = []
+        self.__class__.count += 1
+
+    def process_line(self, state, line):
+        if state == STATE_STATE_HEAD:
+            return self.head.process_line(line)
+        if state == STATE_COMPARTMENT:
+            return self.compartments[-1].process_line(line)
+
+    def __str__(self):
+        return State.template % {"id": self.id or self.head.name() or "state%d" % self.serial,
+                                 "head": self.head,
+                                 "compartments": "\n".join([str(c) for c in self.compartments])}
+
+class InitialState:
+    regex = re.compile("^\\(#\\)(?:\\s*(?P<label>.*?))??(?:\\s+@(?P<id>[^@]*?))?$")
+
+    template = ("\t\"%(id)s\" [shape = circle, style = filled,"
+                "height = 0.2, fixedsize = true, label = \"\"]\n"
+                "\t\"%(id)s\" -> \"%(id)s\" [color = transparent, taillabel = <%(label)s>]")
+
+    count = 0
+
+    def __init__(self, anId, label):
+        self.id = anId or "initial_state_%d" % self.__class__.count
+        self.label = label or ""
+        self.__class__.count += 1
+
+    def __str__(self):
+        return InitialState.template % {"id": self.id,
+                                        "label": html_entities(self.label)}
+
+class FinalState:
+    regex = re.compile("^\\(\\(#\\)\\)(?:\\s*(?P<label>.*?))??(?:\\s+@(?P<id>[^@]*?))?$")
+
+    template = ("\t\"%(id)s\" [shape = doublecircle, style = filled,"
+                "height = 0.2, fixedsize = true, label = \"\"]\n"
+                "\t\"%(id)s\" -> \"%(id)s\" [color = transparent, taillabel = <%(label)s>]")
+
+    count = 0
+
+    def __init__(self, anId, label):
+        self.id = anId or "final_state_%d" % self.__class__.count
+        self.label = label or ""
+        self.__class__.count += 1
+
+    def __str__(self):
+        return FinalState.template % {"id": self.id,
+                                      "label": html_entities(self.label)}
+
+class Transition:
+    regex = re.compile("^(?P<source>.*?)\\s+"
+                       "(?:\\[(?P<guard>.*?)\\]\\s+)?"
+                       "-{2,}>"
+                       "(?:\\s+\\[(?P<label>.*?)\\])?"
+                       "\\s+(?P<target>.*?)$")
+
+    template = ("\t\"%(source)s\" -> \"%(target)s\" "
+                "[arrowtail = none, %(taillabel)sstyle = solid, %(label)sarrowhead = open]")
+    label_template = "%(end)slabel = <%(label)s>, "
+
+    def __init__(self, source, target, guard, label):
+        self.source = source
+        self.target = target
+        self.guard = guard
+        self.label = label
+
+    def __str__(self):
+        return (Transition.template
+                % {"source": self.source,
+                   "target": self.target,
+                   "label": (self.label
+                             and (Transition.label_template
+                                  % {"end": "",
+                                     "label": html_entities(self.label)})
+                             or ""),
+                   "taillabel": (self.guard
+                                 and (Transition.label_template
+                                      % {"end": "tail",
+                                         "label": html_entities("[%s]" % self.guard)})
+                                 or "")})
+
+class Synchronization:
+    start_regex = re.compile("^(?:--\\|==|==\\|--)(?:\\s+@(?P<id>.*?))?\\s+\\{$")
+    in_branch_regex = re.compile("^\\s*(?P<source>.*?)\\s+-{2,}>\\s*\\|$")
+    out_branch_regex = re.compile("^\\s*\\|\\s*-{2,}>\\s+(?P<target>.*?)$")
+    end_regex = re.compile("^\\}$")
+
+    template = ("\t\"%(id)s\" "
+                "[shape = box, width = 0.03, height = 0.2, fixedsize = true, label = \"\"]\n"
+                "%(label)s"
+                "%(in_branches)s"
+                "%(out_branches)s")
+    label_template = "\t\"%(id)s\" -> \"%(id)s\" [color = transparent, label = <%(label)s>]\n"
+
+    count = 0
+
+    class Branch:
+        template = ("\t\"%(source)s\" -> \"%(target)s\" "
+                    "[arrowtail = none, style = solid, arrowhead = open]")
+
+        def __init__(self, source, target):
+            self.source = source
+            self.target = target
+
+        def __str__(self):
+            return (Synchronization.Branch.template
+                    % {"source": self.source, "target": self.target})
+
+    def __init__(self, anId):
+        self.id = anId or "synchronization%d" % self.__class__.count
+        self.in_branches = []
+        self.out_branches = []
+        self.label = []
+        self.__class__.count += 1
+
+    def process_line(self, state, line):
+        if state == STATE_SYNCHRONIZATION:
+            if re.match(Synchronization.end_regex, line):
+                print self
+                return STATE_TOPLEVEL
+            m = re.match(Synchronization.in_branch_regex, line)
+            if m:
+                self.in_branches.append(Synchronization.Branch(m.group("source"), self.id))
+                return state
+            m = re.match(Synchronization.out_branch_regex, line)
+            if m:
+                self.out_branches.append(Synchronization.Branch(self.id, m.group("target")))
+                return state
+            self.label.append(line.strip())
+            return state
+
+    def __str__(self):
+        return (Synchronization.template
+                % {"id": self.id,
+                   "label":
+                       (Synchronization.label_template
+                        % {"id": self.id,
+                           "label": multiline(2, self.label)}),
+                   "in_branches": "\n".join([str(branch) for branch in self.in_branches]),
+                   "out_branches": "\n".join([str(branch) for branch in self.out_branches])})
+
+class DynamicChoicePoint:
+    regex = re.compile("^\\(\\)(?:\\s*(?P<label>.*?))??(?:\\s+@(?P<id>[^@]*?))?$")
+
+    template = ("\t\"%(id)s\" [shape = circle, "
+                "height = 0.2, fixedsize = true, label = \"\"]\n"
+                "\t\"%(id)s\" -> \"%(id)s\" [color = transparent, taillabel = <%(label)s>]")
+
+    count = 0
+
+    def __init__(self, anId, label):
+        self.id = anId or "dynamic_choice_point_%d" % self.__class__.count
+        self.label = label or ""
+        self.__class__.count += 1
+
+    def __str__(self):
+        return DynamicChoicePoint.template % {"id": self.id,
+                                              "label": html_entities(self.label)}
+
+class SynchState:
+    regex = re.compile("^\\((?:\\s*(?P<label>.*?))??(?:\\s+@(?P<id>[^@]*?))?\\)$")
+
+    template = ("\t\"%(id)s\" [shape = circle, "
+                "height = 0.2, label = <%(label)s>]")
+
+    count = 0
+
+    def __init__(self, anId, label):
+        self.id = anId or "synch_state_%d" % self.__class__.count
+        self.label = label or ""
+        self.__class__.count += 1
+
+    def __str__(self):
+        return SynchState.template % {"id": self.id,
+                                      "label": html_entities(self.label)}
+
+class Decision:
+    regex = re.compile("^\\<>(?:\\s+@(?P<id>[^@]*?))?$")
+
+    template = ("\t\"%(id)s\" [shape = diamond, "
+                "height = 0.2, width = 0.4, label = \"\"]")
+
+    count = 0
+
+    def __init__(self, anId):
+        self.id = anId or "decision%d" % self.__class__.count
+        self.__class__.count += 1
+
+    def __str__(self):
+        return Decision.template % {"id": self.id}
+
+
+DIGRAPH_BEGIN = """digraph States
+{
+	graph [rankdir = LR, splines = polyline, fontsize = %(fontsize)f, fontname = %(fontname)s, margin = 0.25]
+	node [fontsize = %(fontsize)f, fontname = %(fontname)s, penwidth = %(penwidth)f]
+	edge [fontsize = %(fontsize)f, fontname = %(fontname)s, penwidth = %(penwidth)f, arrowsize = 0.5]
+"""
+
+PASSTHROUGH = "\t%s"
+
+handler = None
+
+fontsize = 8
+fontname = "Helvetica"
+
+penwidth = 0.25
+
+print DIGRAPH_BEGIN % locals()
+
+for line in fileinput.input():
+
+    if state == STATE_TOPLEVEL:
+        m = re.match(State.simple_regex, line)
+        if m:
+            print State(m.group("inner"))
+            continue
+
+        m = re.match(State.start_regex, line)
+        if m:
+            handler = State()
+            state = STATE_STATE_HEAD
+            continue
+
+        m = re.match(InitialState.regex, line)
+        if m:
+            print InitialState(m.group("id"), m.group("label"))
+            continue
+
+        m = re.match(FinalState.regex, line)
+        if m:
+            print FinalState(m.group("id"), m.group("label"))
+            continue
+
+        m = re.match(Transition.regex, line)
+        if m:
+            print Transition(m.group("source"), m.group("target"),
+                             m.group("guard"), m.group("label"))
+            continue
+
+        m = re.match(Synchronization.start_regex, line)
+        if m:
+            handler = Synchronization(m.group("id"))
+            state = STATE_SYNCHRONIZATION
+            continue
+
+        m = re.match(DynamicChoicePoint.regex, line)
+        if m:
+            print DynamicChoicePoint(m.group("id"), m.group("label"))
+            continue
+
+        m = re.match(SynchState.regex, line)
+        if m:
+            print SynchState(m.group("id"), m.group("label"))
+            continue
+
+        m = re.match(Decision.regex, line)
+        if m:
+            print Decision(m.group("id"))
+            continue
+
+        print line.strip() and PASSTHROUGH % line.strip() or ""
+
+    else:
+        state = handler.process_line(state, line)
+        continue
+
+print "}"

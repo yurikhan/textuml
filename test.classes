@@ -1,0 +1,107 @@
+graph [nodesep = 1]
+
+_[«subsystem»
+SamplePackage]____
+
+{
+<<interface>>
+IFoo
+--
+--
++do_something()
+}
+
+() IBar
+
+{
+Bar
+--
+-some_attribute: ItsType
+-$static_attribute: AnotherType
+--
+		operations
++operation(arg: Type): ResultType
++an_operation_with_a_long_name(
+    and_many: Arguments,
+    so_many: ThatTheyDoNot,
+    fit: On): OneLine
++$static_operation()
+}
+
+Bar --- IBar
+
+{
+Foo
+--
+--
++do_something()
+}
+
+subgraph { rank = same; Foo; Bar }
+
+Foo --|> IFoo
+Foo <#>--> (1..* -bars_) Bar
+
+Bar:operation *-- [We can attach notes]
+
+[Notes can be attached to multiple targets] --* {
+	IFoo
+	Foo
+}
+
+{
+JobManager
+--
+--
+}
+{
+Scheduler
+--
+--
+}
+JobManager - - -> [<<call>>] Scheduler
+
+{
+triangle: Polygon
+--
+center = (0,0)
+vertices = ((0,0),
+    (4,0),
+    (4,3))
+}
+
+{
+Team
+}
+{
+Year
+}
+{
+Player
+}
+<> @Record.association {
+   Team (* team) --- <>
+   <> --- (* goalkeeper) Player
+   <> --- (* season) Year
+}
+{
+Record
+--
+goals for
+goals against
+wins
+losses
+ties
+}
+Record - - - "Record.association"
+subgraph { rank = same; Team; "Record.association"; Player }
+
+(_SampleUseCase_)
+
+/__________/
+SampleNode
+___________/
+
+___-___-___
+SampleComponent
+___________

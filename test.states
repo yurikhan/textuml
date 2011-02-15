@@ -1,0 +1,24 @@
+(#) @Initial
+
+Initial --> Start
+
+{
+Start
+--
+entry/ start dial tone
+exit/ stop dial tone
+}
+
+Start --> [digit(n)] PartialDial
+
+{
+PartialDial
+--
+entry/number.append(n)
+}
+
+PartialDial --> [digit(n)] PartialDial
+
+PartialDial --> [number.isValid()] Final
+
+((#)) @Final

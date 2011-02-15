@@ -1,0 +1,34 @@
+{Setup}
+
+--|== {
+	Setup --> |
+	| --> A1
+	| --> B1
+}
+
+{A1}
+A1 --> A2
+{A2}
+
+{B1}
+B1 --> B2
+{B2}
+
+==|-- {
+	A2 --> |
+	B2 --> |
+	| --> Cleanup
+}
+
+{Cleanup}
+
+{Calculate total cost @CalculateTotalCost}
+CalculateTotalCost --> <>1
+<> @<>1
+<> @<>2
+<>1 [cost < $50] --> <>2
+<>1 [cost ≥ $50] --> GetAuthorization
+{Get authorization @GetAuthorization}
+GetAuthorization --> <>2
+<>2 --> ChargeAccount
+{Charge customer’s account @ChargeAccount}
