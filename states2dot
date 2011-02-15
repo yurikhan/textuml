@@ -131,8 +131,7 @@ class State:
 
     template = ("\t\"%(id)s\" [shape = plaintext, "
                 "height = 0, width = 0, margin = 0, label = <\n"
-                "\t\t<table style=\"rounded\" "
-                "border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"1\">\n"
+                "\t\t<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"1\">\n"
                 "%(head)s\n"
                 "%(compartments)s\n"
                 "\t\t</table>>]")
