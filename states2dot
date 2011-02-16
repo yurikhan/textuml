@@ -155,41 +155,42 @@ class State:
                                  "head": self.head,
                                  "compartments": "\n".join([str(c) for c in self.compartments])}
 
-class InitialState:
-    regex = re.compile("^\\(#\\)(?:\\s*(?P<label>.*?))??(?:\\s+@(?P<id>[^@]*?))?$")
+class SingleLineSymbol:
+    @classmethod
+    def make_regex(Self, prefix, suffix = ""):
+        return re.compile("^%s"
+                          "(?:\\s*(?P<label>.*?))??"
+                          "(?:\\s+@(?P<id>[^@]*?))?"
+                          "%s$" % (prefix, suffix))
+
+    def __init__(self, anId, label):
+        self.id = anId or self.__class__.default_id_template % self.__class__.count
+        self.label = label or ""
+        self.__class__.count += 1
+
+    def __str__(self):
+        return self.__class__.template % {"id": self.id,
+                                          "label": html_entities(self.label)}
+
+class InitialState(SingleLineSymbol):
+    regex = SingleLineSymbol.make_regex("\\(#\\)")
 
     template = ("\t\"%(id)s\" [shape = circle, style = filled,"
                 "height = 0.2, fixedsize = true, label = \"\"]\n"
                 "\t\"%(id)s\" -> \"%(id)s\" [color = transparent, taillabel = <%(label)s>]")
+    default_id_template = "initial_state_%d"
 
     count = 0
 
-    def __init__(self, anId, label):
-        self.id = anId or "initial_state_%d" % self.__class__.count
-        self.label = label or ""
-        self.__class__.count += 1
-
-    def __str__(self):
-        return InitialState.template % {"id": self.id,
-                                        "label": html_entities(self.label)}
-
-class FinalState:
-    regex = re.compile("^\\(\\(#\\)\\)(?:\\s*(?P<label>.*?))??(?:\\s+@(?P<id>[^@]*?))?$")
+class FinalState(SingleLineSymbol):
+    regex = SingleLineSymbol.make_regex("\\(\\(#\\)\\)")
 
     template = ("\t\"%(id)s\" [shape = doublecircle, style = filled,"
                 "height = 0.2, fixedsize = true, label = \"\"]\n"
                 "\t\"%(id)s\" -> \"%(id)s\" [color = transparent, taillabel = <%(label)s>]")
+    default_id_template = "final_state_%d"
 
     count = 0
-
-    def __init__(self, anId, label):
-        self.id = anId or "final_state_%d" % self.__class__.count
-        self.label = label or ""
-        self.__class__.count += 1
-
-    def __str__(self):
-        return FinalState.template % {"id": self.id,
-                                      "label": html_entities(self.label)}
 
 class Transition:
     regex = re.compile("^(?P<source>.*?)\\s+"
@@ -283,56 +284,33 @@ class Synchronization:
                    "in_branches": "\n".join([str(branch) for branch in self.in_branches]),
                    "out_branches": "\n".join([str(branch) for branch in self.out_branches])})
 
-class DynamicChoicePoint:
-    regex = re.compile("^\\(\\)(?:\\s*(?P<label>.*?))??(?:\\s+@(?P<id>[^@]*?))?$")
+class DynamicChoicePoint(SingleLineSymbol):
+    regex = SingleLineSymbol.make_regex("\\(\\)")
 
     template = ("\t\"%(id)s\" [shape = circle, "
                 "height = 0.2, fixedsize = true, label = \"\"]\n"
                 "\t\"%(id)s\" -> \"%(id)s\" [color = transparent, taillabel = <%(label)s>]")
+    default_id_template = "dynamic_choice_point_%d"
 
     count = 0
 
-    def __init__(self, anId, label):
-        self.id = anId or "dynamic_choice_point_%d" % self.__class__.count
-        self.label = label or ""
-        self.__class__.count += 1
-
-    def __str__(self):
-        return DynamicChoicePoint.template % {"id": self.id,
-                                              "label": html_entities(self.label)}
-
-class SynchState:
-    regex = re.compile("^\\((?:\\s*(?P<label>.*?))??(?:\\s+@(?P<id>[^@]*?))?\\)$")
+class SynchState(SingleLineSymbol):
+    regex = SingleLineSymbol.make_regex("\\(", "\\)")
 
     template = ("\t\"%(id)s\" [shape = circle, "
                 "height = 0.2, label = <%(label)s>]")
+    default_id_template = "synch_state_%d"
 
     count = 0
 
-    def __init__(self, anId, label):
-        self.id = anId or "synch_state_%d" % self.__class__.count
-        self.label = label or ""
-        self.__class__.count += 1
-
-    def __str__(self):
-        return SynchState.template % {"id": self.id,
-                                      "label": html_entities(self.label)}
-
-class Decision:
-    regex = re.compile("^\\<>(?:\\s+@(?P<id>[^@]*?))?$")
+class Decision(SingleLineSymbol):
+    regex = SingleLineSymbol.make_regex("<>")
 
     template = ("\t\"%(id)s\" [shape = diamond, "
                 "height = 0.2, width = 0.4, label = \"\"]")
+    default_id_template = "decision%d"
 
     count = 0
-
-    def __init__(self, anId):
-        self.id = anId or "decision%d" % self.__class__.count
-        self.__class__.count += 1
-
-    def __str__(self):
-        return Decision.template % {"id": self.id}
-
 
 DIGRAPH_BEGIN = """digraph States
 {
@@ -400,7 +378,7 @@ for line in fileinput.input():
 
         m = re.match(Decision.regex, line)
         if m:
-            print Decision(m.group("id"))
+            print Decision(m.group("id"), m.group("label"))
             continue
 
         print line.strip() and PASSTHROUGH % line.strip() or ""
