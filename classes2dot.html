@@ -1,0 +1,338 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+		  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>classes2dot — TextUML</title>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<h1><code>classes2dot</code></h1>
+
+<p>The main focus for this script is class/object diagrams, but can also handle component/deployment
+diagrams.</p>
+
+<h2>Table of Contents</h2>
+
+<ul>
+<li><a href="#general">General notes</a>
+	<ul>
+	<li><a href="#ids">Node and port IDs</a></li>
+	<li><a href="#stereotypes">Stereotypes and property strings</a></li>
+	</ul></li>
+<li><a href="#elements">Elements</a>
+	<ul>
+	<li><a href="#note">Note</a></li>
+	<li><a href="#package">Package, Subsystem, Model</a></li>
+	<li><a href="#class">Class/Object, Interface, Utility, Metaclass, Enumeration, Stereotype,
+		Powertype, Actor</a></li>
+	<li><a href="#interface">Interface (suppressed)</a></li>
+	<li><a href="#binary_association">Binary Association/Link, Composition, Generalization,
+		Dependency, InstanceOf</a></li>
+	<li><a href="#association_class">Association Class</a></li>
+	<li><a href="#nary">N-ary Association/Link</a></li>
+	<li><a href="#use_case">Use Case</a></li>
+	<li><a href="#node">Node</a></li>
+	<li><a href="#component">Component</a></li>
+	</ul></li>
+<li><a href="#unsupported">Unsupported notation</a></li>
+</ul>
+
+
+<h2 id="general">General notes</h2>
+
+<h3 id="ids">Node and port IDs</h3>
+
+<p>In many cases, you will need to refer to nodes, such as when describing an association or
+attaching a note. Sometimes, you will want to refer to individual parts of a node — what Graphviz
+calls ports.</p>
+
+<p>Most elements that map to Graphviz nodes support explicit ID specification, in the form of an
+<code>@</code> sign followed by an ID string. TextUML does not place any restrictions on the format
+of IDs except that they cannot contain <code>@</code> signs; however, Graphviz does, and if your
+IDs do not adhere to Graphviz’s rules, you will need to enclose them in double quotes when referring
+to them.</p>
+
+<p>In the syntax explanations below, <code>@<var>id</var></code> indicates the position where an ID
+can be specified. All IDs are optional; if name detection is not supported, a sequential ID will be
+automatically generated.</p>
+
+<p>When practical, TextUML automatically extracts the element name and uses it in place of the ID if
+no ID is explicitly specified. These cases will be specifically mentioned in the documentation
+below.</p>
+
+<p>Additionally, attributes and operations in class definitions can also have IDs. When addressing
+an attribute or operation, write the class name or ID first, then a colon, and then the name or ID
+of the attribute or operation. Any of the two IDs can be quoted, but the colon must not, otherwise
+Graphviz will interpret it as part of the node ID.</p>
+
+
+<h3 id="stereotypes">Stereotypes and property strings</h3>
+
+<p>UML allows stereotypes on most elements, and suggests that they be written above or to the left
+of the element names. This means TextUML must know to skip them when detecting names.</p>
+
+<p>TextUML recognizes two forms of stereotype specification — the proper guillemets encoded in UTF-8
+(<code>«like this»</code>) and their poor man’s replacements (<code>&lt;&lt;like
+this&gt;&gt;</code>).</p>
+
+<p>Although UML suggests that property strings be written after or below the element names, TextUML
+knows to skip them too if they appear before names. A property string is enclosed in braces
+(<code>{like this}</code>).</p>
+
+
+<h2 id="elements">Elements</h2>
+
+<p>The following elements are supported.</p>
+
+
+<h3 id="note">Note</h3>
+
+<p>Two syntaxes for notes are supported. One, for attaching a note to a single target:</p>
+
+<pre><code><var>target</var> *-- [<var>note text</var>]</code></pre>
+
+<p>The other, for attaching to multiple targets:</p>
+
+<pre><code>[<var>note text</var>] --* {<var>targets</var>}</code></pre>
+
+<p>The note text may contain newlines. In the second syntax, targets are separated with newlines.
+Targets can be indented; the indentation is ignored. Empty lines are ignored. (In particular,
+this allows a newline immediately after the opening brace or immediately preceding the closing
+brace.)</p>
+
+<p>Notes do not have IDs or names, because in UML notes do not participate in any relationships
+except for attachment.</p>
+
+
+<h3 id="package">Package, Subsystem, Model</h3>
+
+<pre><code>__[<var>label</var> @<var>id</var>]____</code></pre>
+
+<p>The text icon for package represents the upper edge of the package folder icon, with the tab.
+The number of underscore characters can be arbitrary, provided that there is at least one at
+each side.</p>
+
+<p>If no <code>@<var>id</var></code> is specified, the first word (delimited by whitespace or any of
+<code>« » &lt; &gt; { }</code>) of the label that is not a stereotype or a property string is taken
+to be the package name.</p>
+
+<p>Subsystems and Models are notated as Packages with stereotypes of «subsystem» and «model»,
+respectively.</p>
+
+
+<h3 id="class">Class/Object, Interface, Utility, Metaclass, Enumeration, Stereotype, Powertype,
+Actor</h3>
+
+<pre><code>{
+<var>label</var> @<var>id</var>
+--
+<var>attribute</var> @<var>id</var>
+…
+--
+    <var>compartment name</var>
+<var>operation</var> @<var>id</var>
+    <var>continuation line</var>
+…
+}</code></pre>
+
+<p>If no explicit ID is specified for the class, the first word of the label (delimited by
+whitespace or any of <code>« » &lt; &gt; { }</code>) that is not a stereotype or a property string
+is considered to be the class name.</p>
+
+<p>A class may have zero or more compartments (in addition to the name compartment, which is always
+present). Compartments are separated by <code>--</code> on a separate line. Each compartment may
+have a compartment name, specified by an indented line immediately following the separator. The
+remaining lines of a compartment specify the class’s features (attributes, operations and possibly
+other entities).</p>
+
+<p>A feature may be specified on one or more lines. Only the first line is considered when looking
+for the <code>@<var>id</var></code> and name. If an <code>@<var>id</var></code> is not specifed
+explicitly, the name is extracted using the following rules:</p>
+
+<ul>
+	<li>If the first character is one of <code>+ # - ~</code>, it is skipped. (Visibility)</li>
+	<li>If the next character is <code>$</code>, it is skipped. (Class-scope member)</li>
+	<li>If the next character is <code>/</code>, it is skipped. (Derived attribute)</li>
+	<li>The longest possible string of characters not containing spaces, nor any of <code>: ( ) « »
+		&lt; &gt; { }</code>, is taken to be the name.</li>
+</ul>
+
+<p>Indented lines are considered to be continuation lines. The indentation is preserved. Note that
+Graphviz will preserve spaces but skip tabs.</p>
+
+<p>Utilities, Metaclasses, Enumerations, Stereotypes, Powertypes and Actors are notated as Classes
+with stereotypes of «utility», «metaclass», «enumeration», «stereotype», «powertype» and «actor»
+respectively.</p>
+
+<p>Objects are notated the same way as Classes except that the label will contain an object name
+followed by a colon and a class name. The object name (part of label before the colon, not including
+any stereotypes or property strings) will be used for the node ID by default.</p>
+
+
+<h3 id="interface">Interface (suppressed)</h3>
+
+<pre><code>() <var>name</var> @<var>id</var></code></pre>
+
+<p>An interface can alternatively be specified like this. In this form, attributes and operations
+are suppressed. In fact, there is no syntax to specify them!</p>
+
+
+<h3 id="binary_association">Binary Association/Link, Composition, Generalization, Dependency,
+InstanceOf</h3>
+
+<p>Given any two nodes or ports, you can draw any kind of edge supported by Graphviz using this
+syntax:</p>
+
+<pre><code><var>&lt;source&gt;</var> (<var>&lt;label&gt;</var>) [<var>&lt;qualifier&gt;</var>]<var>&lt;arrowtail&gt;</var><var>&lt;style&gt;</var><var>&lt;arrowhead&gt;</var>[<var>&lt;qualifier&gt;</var>] [<var>&lt;label&gt;</var>] (<var>&lt;label&gt;</var>) <var>&lt;target&gt;</var></code></pre>
+
+<p>Here, <code><var>&lt;source&gt;</var></code> and <code><var>&lt;target&gt;</var></code> can be
+any addressable element (nodes or node:port combinations, quoted as necessary). Labels in
+parentheses relate to the edge ends, and the label in brackets relates to the edge itself.
+Qualifiers also relate to the ends. Labels and qualifiers are optional; the delimiting parentheses
+and brackets should be omitted along with their content.</p>
+
+<p>The arrowheads and line style are specified graphically. The following arrowheads are
+available (shown here as the right end of a solid edge):</p>
+
+<table>
+	<tr><td><code>-----#&gt;</code></td><td>filled triangle</td></tr>
+	<tr><td><code>-----&lt;#</code></td><td>filled inverted triangle</td></tr>
+	<tr><td><code>----(#)</code> or <code>------*</code></td><td>filled dot</td></tr>
+	<tr><td><code>--(#)&lt;#</code> or <code>----*&lt;#</code></td><td>filled dot and inverted triangle</td></tr>
+	<tr><td><code>-----()</code> or <code>------o</code></td><td>empty dot</td></tr>
+	<tr><td><code>---()&lt;#</code> or <code>----o&lt;#</code></td><td>empty dot and filled inverted triangle</td></tr>
+	<tr><td><code>-------</code></td><td>none</td></tr>
+	<tr><td><code>------|</code></td><td>tee</td></tr>
+	<tr><td><code>-----|&gt;</code></td><td>empty triangle</td></tr>
+	<tr><td><code>-----&lt;|</code></td><td>empty inverted triangle</td></tr>
+	<tr><td><code>----&lt;#&gt;</code></td><td>filled diamond</td></tr>
+	<tr><td><code>-----&lt;&gt;</code></td><td>empty diamond</td></tr>
+	<tr><td><code>------&lt;</code></td><td>crow</td></tr>
+	<tr><td><code>----[#]</code></td><td>filled box</td></tr>
+	<tr><td><code>-----[]</code></td><td>empty box</td></tr>
+	<tr><td><code>------&gt;</code></td><td>open</td></tr>
+	<tr><td><code>------\</code></td><td>half-open</td></tr>
+</table>
+
+<p>The following line styles are supported:</p>
+
+<table>
+	<tr><td><code>-----</code></td><td>solid</td></tr>
+	<tr><td><code>- - -</code></td><td>dashed</td></tr>
+	<tr><td><code>. . .</code></td><td>dotted</td></tr>
+	<tr><td><code>=====</code></td><td>bold</td></tr>
+	<tr><td><code>%%%%%</code></td><td>invisible</td></tr>
+</table>
+
+<p>Not all of these are used in UML. I decided to provide them anyway, as an extension.</p>
+
+<p>Here are examples for specifying various types of edges:</p>
+
+<table>
+	<tr><td>Association</td><td><code>Class1 ----- Class2</code><br />
+		<code>Class1 ----&gt; Class2</code> (one-way navigation)<br />
+		<code>Class1 &lt;&gt;--- Class2</code> (aggregation)<br />
+		<code>Class1 [Key]----&gt; (0..1 -class2) Class2</code> (with qualifier, multiplicity,
+			visibility and role)</td></tr>
+	<tr><td>Composition</td><td><code>Whole &lt;#&gt;--- Part</code> (both ends navigable)<br />
+		<code>Whole &lt;#&gt;--&gt;</code> (one end navigable)</td></tr>
+	<tr><td>Generalization</td><td><code>Derived ---|&gt; Base</code><br />
+		<code>Implementation - - -|&gt; Interface</code> (realization)</td></tr>
+	<tr><td>Dependency</td><td><code>Dependent - - -&gt; Dependency</code></td></tr>
+	<tr><td>InstanceOf</td><td><code>Instance - - -&gt; [«instanceOf»] Class</code></td></tr>
+</table>
+
+
+<h3 id="association_class">Association Class</h3>
+
+<p>Since in Graphviz edges can only connect nodes, an association class can only be attached to the
+n-ary form of association:</p>
+
+<pre><code>{
+SomeClass
+}
+{
+SomeOtherClass
+}
+{
+AssociationClass
+}
+&lt;&gt; {
+    SomeClass ----- &lt;&gt;
+    &lt;&gt; ----- SomeOtherClass
+    &lt;&gt; - - - AssociationClass
+}</code></pre>
+
+
+<h3 id="nary">N-ary Association/Link</h3>
+
+<pre><code>&lt;&gt; @<var>id</var> {
+<var>branches</var>
+}</code></pre>
+
+<p><var>branches</var> lists the edges connecting other elements with the diamond representing the
+association. Either end of each branch must be the diamond, <code>&lt;&gt;</code>. Edges are
+specified the same way as usual, except that the end connected to the diamond cannot have any
+arrowhead.</p>
+
+<p>The other end may have any supported arrowhead, but note that it might not make sense in UML.</p>
+
+
+<h3 id="use_case">Use Case</h3>
+
+<pre><code>(_<var>label</var> @<var>id</var>_)</code></pre>
+
+<p>Note: Since use case labels are typically phrases rather than identifiers, it is not recommended
+to rely on name autodetection. The latter works the same way for use cases as for most other items —
+the first word of the label, skipping any stereotypes and property strings, becomes the default
+ID.</p>
+
+
+<h3 id="node">Node</h3>
+
+<pre><code>/_____/
+<var>label</var> @<var>id</var>
+______/</code></pre>
+
+<p>The number of underscore characters can be arbitrary.</p>
+
+<p>The first word of the label that is not a stereotype or a property string becomes the default ID
+if no explicit ID is specified.</p>
+
+
+<h3 id="component">Component</h3>
+
+<pre><code>__-__-__
+<var>label</var> @<var>id</var>
+________</code></pre>
+
+<p>The number of underscores and hyphens in the opening line can be arbitrary, except that: there
+must be at least one underscore between any two hyphens; there must be at least two hyphens; and
+there must be at least one underscore at the start and end of the line.</p>
+
+<p>The closing line can consist of an arbitrary number of underscore characters.</p>
+
+<p>The usual rule for name autodetection applies.</p>
+
+
+<h2 id="unsupported">Unsupported notation</h2>
+
+<ul>
+	<li>UML defines several stereotype icons that can be used instead of writing the stereotype in
+		guillemets. Graphviz does not make it easy to add icons, so we don’t bother.</li>
+	<li>Nesting. Again, Graphviz graphs cannot be nested.</li>
+	<li>Boldface class names, italic abstract class names and abstract methods, underlined object
+		names and class scope attributes and operations. Graphviz accepts HTML
+		<code>&lt;b&gt;</code>, <code>&lt;i&gt;</code> and <code>&lt;u&gt;</code> tags but does not
+		act on them.</li>
+	<li>Any kind of lines attached to other lines. So, to attach an association class to an
+		association, or model a xor-association, use the n-ary association form.</li>
+	<li>Qualifiers. Since there is no way to make Graphviz attach a qualifier box to the class box
+		at the end of an association, qualifiers are displayed in brackets in the association end’s
+		label.</li>
+</ul>
+
+
+</body>
+</html>

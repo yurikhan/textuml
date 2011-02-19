@@ -1,0 +1,81 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+		  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>TextUML Rationale</title>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<h1>TextUML Rationale</h1>
+
+<p>Since the invention of <acronym title="Unified Modeling Language">UML</acronym>, a lot of UML
+tools have been developed, both proprietary and free, for various platforms. So, why another one,
+and, to top it all, a text-based one?</p>
+
+<p>Being a graphic language, UML is pretty well suited for drawing on paper, with a pencil. When you
+draw UML on paper, your design flows directly into your diagram and nothing distracts you from the
+process. However, most of the existing GUI UML tools cannot achieve this level of usability. In many
+tools, the process for adding a class to a class diagram looks like this:</p>
+
+<ul>
+	<li>Click on a toolbar button to select class adding mode. (This mode may or may not be
+		automatically turned off after you add one class.)</li>
+	<li>Click on the place on the diagram where you want the new class to appear.</li>
+	<li>Enter the name of the new class — either directly on the diagram or in a dialog.</li>
+</ul>
+
+<p>Now suppose you want to add some attributes and operations to that class. Ideally, you would want
+to just click between the lines delimiting the attribute compartment and start typing: <kbd>-name:
+string &lt;Enter&gt; -birthdate: date</kbd> and so on. Then, you would press the Down arrow once or
+maybe twice to get into the operations compartment, and continue typing: <kbd>+set_salary(value:
+int) &lt;Enter&gt; +get_salary(): int {query}</kbd>…</p>
+
+<p>Now, stop daydreaming. Everybody knows that you can’t do that and you wouldn’t really want that,
+would you? Remembering which characters mean which visibility, remembering the UML syntax for
+argument direction, name and type, remembering all the important things that can be specified only
+via the property string. We will draw you a nice dialog that will walk you through all these
+hurdles. You will just need to enter your data in a nice grid and check the right boxes. That’s
+what almost all UML tool designers tell you. See, it’s so intuitive, even a child could learn this
+in twenty minutes.</p>
+
+<p>So, what’s wrong with this picture?</p>
+
+<p>As many seasoned computer user know, there are two characteristics of software that are
+frequently misunderstood: Intuitiveness and Usability. The former is the ability of a total newbie
+to use the software. The latter is the ability of a trained specialist to use the software
+efficiently.</p>
+
+<p>So, if you were a total newbie in UML, you might like some of the tools out there on the market.
+However, if you have studied the UML specification and/or attended an academic course in UML, these
+tools will distract your attention with endless dialogs and grids with broken <kbd>Tab</kbd>
+navigation. You will get the job done, but the incessant switching between your keyboard and mouse
+will drive you nuts.</p>
+
+<p>In TextUML, I take another approach.</p>
+
+<p>I posit that the most efficient interface for entering data is your text editor — be it Vim,
+Emacs, <acronym title="File and Archive">FAR</acronym> Manager’s internal editor, or one of a
+thousand other text editors. What’s important is that you use it every day and have customized it
+over time for your personal convenience.</p>
+
+<p>There’s just a small problem left. How can you write a graphical language in a text-only editor?
+In fact, that’s easy. After all, Graphviz authors have devised a text-only syntax for describing
+graphs, and UML diagrams are essentially graphs. Additionally, Graphviz has several high quality
+layout engines that can save us the trouble of deciding where to position each node — with a few
+little hints, it will automatically determine the best layout.</p>
+
+<p>However, the Graphviz input language is quite a low-level one. If you want to draw a class with a
+few attributes and operations, you have two options: either a record-shaped node, or a node with an
+<acronym title="Hypertext Markup Language">HTML</acronym>-like label. Record-shaped nodes seem to be
+mildly deprecated, and it is said HTML labels provide more features. But having to wrap each of your
+attributes and operations in a <code>&lt;tr&gt;&lt;td&gt;…&lt;/td&gt;&lt;/tr&gt;</code> is hardly
+conductive to modeling. Also, the dialect of HTML that Graphviz understands is the kind that was
+popular in 1990s — no <acronym title="Cascading Stylesheets">CSS</acronym>, presentational
+attributes all the way. Almost begs for some kind of script to generate it.</p>
+
+<p>So, what I suggest is precisely that: Scripts that will accept an unobtrusive input syntax and
+generate code suitable for feeding into Graphviz.</p>
+
+</body>
+</html>
