@@ -1,0 +1,70 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+		  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>deps2dot — TextUML</title>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<h1><code>deps2dot</code></h1>
+
+<p>This is not strictly related to UML but this script is how all this started, plus it provides a
+convenient and terse syntax as compared with raw Graphviz or <code>classes2dot</code>.</p>
+
+<p><code>deps2dot</code> is designed to handle a very narrow class of graphs — dependency graphs.
+There are many uses for dependency graphs, e.g.:</p>
+
+<ul>
+	<li>A set of C source and header files, with dependency representing inclusion. It is best to
+		start studying with the header file that depends on nothing and proceed to those that depend
+		on the files you have already studied, but with more than 7±2 files, the order becomes
+		non-obvious. By entering the dependencies and looking at the graph, you can easily choose
+		the optimum sequence.</li>
+	<li>A set of tasks to be done. However, some tasks require that other tasks be completed before
+		they can be started.</li>
+	<li>A set of interdependent refactorings. If you do them in dependency order, each refactoring
+		becomes a small, reviewable patch in the source control system. If you start with some
+		arbitrary refactoring and it turns out that you need another one to make the code compile,
+		you now have two options: to undo the changes, do that other refactoring first and then try
+		to repeat this one; or to plough right through and plop both refactorings together in one
+		patch. If you’re unlucky, that other refactoring will require several more unrelated
+		changes.</li>
+</ul>
+
+<h2>Syntax</h2>
+
+<p>The syntax accepted by <code>deps2dot</code> is very simple:</p>
+
+<pre><code>Dependent:
+    Dependency_1
+    Dependency_2
+    :
+    Dependency_N</code></pre>
+
+<p>This states that <code>Dependent</code> depends on each <code>Dependency_<var>i</var></code>.
+Conversely, dependents can be grouped too:</p>
+
+<pre><code>Dependent_1:
+Dependent_2:
+:
+Dependent_N:
+    Dependency</code></pre>
+
+<p>This states that each <code>Dependent_<var>i</var></code> depends on <code>Dependency</code>.
+Also, both groupings can be used at the same time:</p>
+
+<pre><code>Dependent_1:
+Dependent_2:
+    Dependency_1
+    Dependency_2</code></pre>
+
+<p>Such syntax states that for each pair (<var>i</var>, <var>j</var>),
+<code>Dependent_<var>i</var></code> depends on <code>Dependency_<var>j</var></code>.</p>
+
+<p>Each dependent must begin in the first position of the line and must end with a colon and
+newline, and each dependency must be indented from the beginning of line with one or more space or
+tab.</p>
+
+</body>
+</html>
