@@ -1,0 +1,47 @@
+#! /usr/bin/python
+
+import fileinput, re
+
+def dump(dependents, dependencies):
+    print "".join(["\t\"%s\" -> \"%s\"\n" % (dependent, dependency)
+                   for dependent in dependents
+                   for dependency in dependencies])
+
+dependent_regexp = re.compile("^(.*?):$")
+dependency_regexp = re.compile("^\t(.*?)$")
+
+dependents = []
+dependencies = []
+
+fontsize = 8
+fontname = "Helvetica"
+
+penwidth = 0.25
+
+DIGRAPH_BEGIN = """digraph Dependencies
+{
+	graph [rankdir = RL, splines = polyline, fontsize = %(fontsize)f, fontname = %(fontname)s, margin = 0.25]
+	node [shape = box, fontsize = %(fontsize)f, fontname = %(fontname)s, penwidth = %(penwidth)f]
+	edge [arrowhead = open, style = dashed, fontsize = %(fontsize)f, fontname = %(fontname)s, penwidth = %(penwidth)f, arrowsize = 0.5]
+"""
+
+print DIGRAPH_BEGIN % locals()
+
+for line in fileinput.input():
+    m = dependent_regexp.match(line)
+    if m:
+        if len(dependencies) > 0:
+            dump(dependents, dependencies)
+            dependents = [m.group(1)]
+            dependencies = []
+        else:
+            dependents.append(m.group(1))
+        continue
+    m = dependency_regexp.match(line)
+    if m:
+        dependencies.append(m.group(1))
+        continue
+
+dump(dependents, dependencies)
+
+print "}"
