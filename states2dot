@@ -140,9 +140,10 @@ class State:
         self.id = None
         self.serial = self.__class__.count
         self.head = State.Head(self)
-        inner and self.head.process_line(inner)
         self.compartments = []
         self.__class__.count += 1
+
+        inner and self.head.process_line(inner)
 
     def process_line(self, state, line):
         if state == STATE_STATE_HEAD:

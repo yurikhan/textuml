@@ -129,6 +129,7 @@ class Package(MultilineSymbol):
     count = 0
 
 class Class:
+    simple_regex = re.compile("^\\{(?P<inner>.*?)\\}$")
     start_regex = re.compile("^\\{$")
     separator_regex = re.compile("^--$")
     end_regex = re.compile("^\\}$")
@@ -249,11 +250,13 @@ class Class:
                 "%(compartments)s\n"
                 "\t\t</table>>]")
 
-    def __init__(self):
+    def __init__(self, inner = None):
         self.head = Class.Head(self)
         self.id = None
         self.compartments = []
         self.__class__.count += 1
+
+        inner and self.head.process_line(inner)
 
     def process_line(self, state, line):
         if state == STATE_CLASS_HEAD:
@@ -532,6 +535,11 @@ for line in fileinput.input():
         if m:
             handler = Package()
             state = handler.process_line(STATE_PACKAGE, m.group("tail"))
+            continue
+
+        m = re.match(Class.simple_regex, line)
+        if m:
+            print Class(m.group("inner"))
             continue
 
         m = re.match(Class.start_regex, line)
