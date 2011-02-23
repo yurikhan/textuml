@@ -8,7 +8,7 @@ def dump(dependents, dependencies):
                    for dependency in dependencies])
 
 dependent_regexp = re.compile("^(.*?):$")
-dependency_regexp = re.compile("^\t(.*?)$")
+dependency_regexp = re.compile("^\\s+(.*?)$")
 
 dependents = []
 dependencies = []
