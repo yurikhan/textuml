@@ -22,3 +22,11 @@ PartialDial --> [digit(n)] PartialDial
 PartialDial --> [number.isValid()] Final
 
 ((#)) @Final
+
+Final *-- [States can have notes, too]
+
+[Notes can be attached
+to multiple targets] --* {
+	Start:entry
+	PartialDial
+}
