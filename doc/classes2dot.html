@@ -124,10 +124,7 @@ respectively.</p>
 <h3 id="class">Class/Object, Interface, Utility, Metaclass, Enumeration, Stereotype, Powertype,
 Actor</h3>
 
-<pre><code>{<var>label</var> @<var>id</var>}</code></pre>
-
-<pre><code>{
-<var>label</var> @<var>id</var>
+<pre><code>&lt;<var>template params</var>&gt; {<var>label</var> @<var>id</var>
 --
 <var>attribute</var> @<var>id</var>
 …
@@ -135,8 +132,9 @@ Actor</h3>
     <var>compartment name</var>
 <var>operation</var> @<var>id</var>
     <var>continuation line</var>
-…
-}</code></pre>
+…}</code></pre>
+
+<p>A class may have an optional list of template parameters, which can span multiple lines.</p>
 
 <p>If no explicit ID is specified for the class, the first word of the label (delimited by
 whitespace or any of <code>« » &lt; &gt; { }</code>) that is not a stereotype or a property string

@@ -5,12 +5,13 @@ import fileinput, re
 from textuml_common import *
 
 (STATE_PACKAGE,
+ STATE_TEMPLATE_PARAMS,
  STATE_CLASS_HEAD,
  STATE_COMPARTMENT,
  STATE_NARY_ASSOCIATION,
  STATE_USECASE,
  STATE_NODE,
- STATE_COMPONENT) = range(4, 11)
+ STATE_COMPONENT) = range(4, 12)
 state = STATE_TOPLEVEL
 
 class MultilineSymbol:
@@ -55,10 +56,9 @@ class Package(MultilineSymbol):
     count = 0
 
 class Class:
-    simple_regex = re.compile("^\\{(?P<inner>.*?)\\}$")
-    start_regex = re.compile("^\\{$")
+    start_regex = re.compile("^\\{(?P<tail>.*)$")
     separator_regex = re.compile("^--$")
-    end_regex = re.compile("^\\}$")
+    end_regex = re.compile("^(?P<tail>.*?)\\}$")
     id_regex = re.compile("^\\s*(?P<label>.*?)(?:\\s+@(?P<id>[^@]*?))?$")
     name_regex = re.compile("^\\s*(?:(?:«.*?»|<<.*?>>|\\{.*?\\})\\s*)*"
                             "(?P<name>[^\\s:()«»<>{}]+).*?"
@@ -66,6 +66,34 @@ class Class:
                             "$", re.DOTALL)
 
     count = 0
+
+    class TemplateParams:
+        start_regex = re.compile("^<(?P<tail>[^>].*)?$")
+        end_regex = re.compile("^(?P<label>.*?)>\\s+\\{(?P<tail>.*?)$")
+
+        template = ("\t\t<table border=\"0\" cellborder=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n"
+                    "\t\t<tr><td></td><td colspan=\"2\" border=\"1\" cellpadding=\"1\">%(label)s</td></tr>"
+                    "\t\t<tr><td colspan=\"2\">\n"
+                    "%%(body)s</td><td></td></tr>"
+                    "\t\t</table>")
+        identity_template = "%(body)s"
+
+        def __init__(self, owner):
+            self.owner = owner
+            self.label = []
+
+        def process_line(self, line):
+            m = re.match(Class.TemplateParams.end_regex, line)
+            if m:
+                self.label.append(m.group("label"))
+                return self.owner.process_line(STATE_CLASS_HEAD, m.group("tail"))
+            self.label.append(line.strip())
+            return STATE_TEMPLATE_PARAMS
+
+        def __str__(self):
+            return (self.label
+                    and Class.TemplateParams.template % {"label": multiline(3, self.label)}
+                    or Class.TemplateParams.identity_template)
 
     class Head:
         template = "\t\t<tr><td>%s</td></tr>"
@@ -78,13 +106,16 @@ class Class:
             if re.match(Class.separator_regex, line):
                 self.owner.compartments.append(Class.Compartment(self.owner))
                 return STATE_COMPARTMENT
-            if re.match(Class.end_regex, line):
-                print self.owner
-                return STATE_TOPLEVEL
-
+            end = re.match(Class.end_regex, line)
+            if end:
+                line = end.group("tail")
             m = re.match(Class.id_regex, line)
             self.owner.id = self.owner.id or m.group("id")
             self.lines.append(m.group("label"))
+
+            if end:
+                print self.owner
+                return STATE_TOPLEVEL
             return STATE_CLASS_HEAD
 
         def __str__(self):
@@ -109,27 +140,29 @@ class Class:
             if re.match(Class.separator_regex, line):
                 self.owner.compartments.append(Class.Compartment(self.owner))
                 return STATE_COMPARTMENT
-            if re.match(Class.end_regex, line):
+
+            end = re.match(Class.end_regex, line)
+            if end:
+                line = end.group("tail")
+
+            feature = re.match(Class.Feature.regex, line)
+            cont = re.match(Class.Feature.continuation_regex, line)
+            if feature:
+                self.features.append(Class.Feature(feature.group("id"),
+                                                   feature.group("name"),
+                                                   feature.group("feature")))
+            elif cont:
+                if self.features:
+                    self.features[-1].append(cont.group("id"), cont.group("tail"))
+                else:
+                    self.features.append(Class.Feature(cont.group("id"), None,
+                                                       cont.group("tail"), "center"))
+            else:
+                self.features.append(Class.Feature(None, None, line.strip()))
+
+            if end:
                 print self.owner
                 return STATE_TOPLEVEL
-
-            m = re.match(Class.Feature.regex, line)
-            if m:
-                self.features.append(Class.Feature(m.group("id"),
-                                                   m.group("name"),
-                                                   m.group("feature")))
-                return STATE_COMPARTMENT
-
-            m = re.match(Class.Feature.continuation_regex, line)
-            if m:
-                if self.features:
-                    self.features[-1].append(m.group("id"), m.group("tail"))
-                else:
-                    self.features.append(Class.Feature(m.group("id"), None,
-                                                       m.group("tail"), "center"))
-                return STATE_COMPARTMENT
-
-            self.features.append(Class.Feature(None, None, line.strip()))
             return STATE_COMPARTMENT
 
         def __str__(self):
@@ -170,13 +203,15 @@ class Class:
                 "id": self.id or self.name,
                 "text": multiline(4, self.text)}
 
-    template = ("\t\"%(id)s\" [shape = plaintext, height = 0, width = 0, margin = 0, label = <\n"
-                "\t\t<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"1\">\n"
+    body_template = ("\t\t<table border=\"0\" cellborder=\"1\" cellspacing=\"0\" cellpadding=\"1\">\n"
                 "%(head)s\n"
                 "%(compartments)s\n"
-                "\t\t</table>>]")
+                "\t\t</table>")
+    template = ("\t\"%(id)s\" [shape = plaintext, height = 0, width = 0, margin = 0, label = <\n"
+                "%(body)s>]")
 
     def __init__(self, inner = None):
+        self.template_params = Class.TemplateParams(self)
         self.head = Class.Head(self)
         self.id = None
         self.compartments = []
@@ -185,6 +220,8 @@ class Class:
         inner and self.head.process_line(inner)
 
     def process_line(self, state, line):
+        if state == STATE_TEMPLATE_PARAMS:
+            return self.template_params.process_line(line)
         if state == STATE_CLASS_HEAD:
             return self.head.process_line(line)
         if state == STATE_COMPARTMENT:
@@ -192,9 +229,11 @@ class Class:
         return state
 
     def __str__(self):
-        return Class.template % {"id": self.id or self.head.name(),
-                                 "head": self.head,
-                                 "compartments": "\n".join([str(c) for c in self.compartments])}
+        return (Class.template
+                % {"id": self.id or self.head.name(),
+                   "body": str(self.template_params) % {"body": Class.body_template % {
+                        "head": self.head,
+                        "compartments": "\n".join([str(c) for c in self.compartments])}}})
 
 class Interface:
     regex = re.compile("^\\(\\)\\s*(?P<label>(?P<name>\\S+).*?)(?:\\s+@(?P<id>[^@]*?))?$")
@@ -463,15 +502,16 @@ for line in fileinput.input():
             state = handler.process_line(STATE_PACKAGE, m.group("tail"))
             continue
 
-        m = re.match(Class.simple_regex, line)
-        if m:
-            print Class(m.group("inner"))
-            continue
-
         m = re.match(Class.start_regex, line)
         if m:
             handler = Class()
-            state = STATE_CLASS_HEAD
+            state = handler.process_line(STATE_CLASS_HEAD, m.group("tail"))
+            continue
+
+        m = re.match(Class.TemplateParams.start_regex, line)
+        if m:
+            handler = Class()
+            state = handler.process_line(STATE_TEMPLATE_PARAMS, m.group("tail"))
             continue
 
         m = re.match(Interface.regex, line)
